@@ -32,6 +32,10 @@ def extract_keypoints_from_video(video_path, output_folder):
         frame_count += 1
     cap.release()
 
+# 이동 평균 함수
+def moving_average(data, window_size):
+    return np.convolve(data, np.ones(window_size)/window_size, mode='valid')
+
 # 이상 행동 감지 함수
 def predict_anomaly(video_path):
     # 저장된 max_length 로드
@@ -53,7 +57,16 @@ def predict_anomaly(video_path):
     
     predictions = model.predict(padded_frames)
     anomaly_scores = [pred[0] for pred in predictions]
-    return anomaly_scores
+    
+    # 이상 행동 점수 정규화 (0에서 100 사이)
+    min_score = np.min(anomaly_scores)
+    max_score = np.max(anomaly_scores)
+    normalized_scores = [(score - min_score) / (max_score - min_score) * 100 for score in anomaly_scores]
+    
+    # 이동 평균을 사용하여 점수 부드럽게 만들기
+    smooth_scores = moving_average(normalized_scores, window_size=5)
+    
+    return smooth_scores
 
 # 모델 불러오기
 model = load_model('anomaly_detection_model.h5')
